@@ -1,0 +1,7 @@
+target/
+apache-maven-*/
+*.tar.gz
+.idea/
+.vscode/
+.DS_Store
+.env

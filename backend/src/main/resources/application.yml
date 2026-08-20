@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: reliabilityengine
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/reliability_engine}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+cors:
+  allowed-origin: ${FRONTEND_URL:http://localhost:3000}
