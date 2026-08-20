@@ -19,7 +19,7 @@ spring:
     baseline-on-migrate: true
 
 cors:
-  allowed-origin: ${FRONTEND_URL:http://localhost:3000}
+  allowed-origin: ${FRONTEND_URL:http://localhost:5173}
 
 llm:
   api:
