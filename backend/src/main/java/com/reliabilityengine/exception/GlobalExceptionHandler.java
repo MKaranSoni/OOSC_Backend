@@ -14,45 +14,46 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private Map<String, Object> createErrorResponse(String error, String message) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", error);
+        response.put("message", message);
+        response.put("timestamp", java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC).toString());
+        return response;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        errors.put("error", "VALIDATION_ERROR");
+    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        Map<String, Object> response = createErrorResponse("VALIDATION_ERROR", "Invalid request");
+        Map<String, String> details = new HashMap<>();
         
-        StringBuilder message = new StringBuilder();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
-            if (!message.isEmpty()) {
-                message.append("; ");
-            }
-            message.append(errorMessage);
+            details.put(fieldName, errorMessage);
         });
         
-        errors.put("message", message.toString());
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+        response.put("details", details);
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(SuiteNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleSuiteNotFoundException(SuiteNotFoundException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "NOT_FOUND");
-        error.put("message", ex.getMessage());
-        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    public ResponseEntity<Map<String, Object>> handleSuiteNotFoundException(SuiteNotFoundException ex) {
+        return new ResponseEntity<>(createErrorResponse("SUITE_NOT_FOUND", ex.getMessage()), HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<Map<String, String>> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "MALFORMED_JSON");
-        error.put("message", "Request body is malformed or invalid");
-        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    public ResponseEntity<Map<String, Object>> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+        return new ResponseEntity<>(createErrorResponse("MALFORMED_JSON", "Request body is malformed or invalid"), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ScenarioGenerationException.class)
+    public ResponseEntity<Map<String, Object>> handleScenarioGenerationException(ScenarioGenerationException ex) {
+        return new ResponseEntity<>(createErrorResponse("SCENARIO_GENERATION_FAILED", ex.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleGeneralException(Exception ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "INTERNAL_SERVER_ERROR");
-        error.put("message", "An unexpected error occurred");
-        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
+        return new ResponseEntity<>(createErrorResponse("INTERNAL_SERVER_ERROR", "An unexpected error occurred"), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

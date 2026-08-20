@@ -6,16 +6,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TestResultResponse {
-
-    @JsonProperty("scenario_id")
-    private UUID scenarioId;
+public class ScenarioResponse {
 
     @JsonProperty("scenario_type")
     private String scenarioType;
@@ -23,11 +18,8 @@ public class TestResultResponse {
     @JsonProperty("user_prompt")
     private String userPrompt;
 
-    private Boolean passed;
+    private String description;
 
-    @JsonProperty("failure_mode")
-    private String failureMode;
-
-    private String reasoning;
-    private Object trace;
+    @JsonProperty("expected_risk")
+    private String expectedRisk;
 }

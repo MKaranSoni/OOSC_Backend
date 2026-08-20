@@ -9,6 +9,10 @@ import com.reliabilityengine.dto.TestResultResponse;
 import com.reliabilityengine.entity.TestResult;
 import com.reliabilityengine.entity.TestSuite;
 import com.reliabilityengine.exception.SuiteNotFoundException;
+import com.reliabilityengine.model.EvaluationResult;
+import com.reliabilityengine.model.ExecutionResult;
+import com.reliabilityengine.model.Scenario;
+import com.reliabilityengine.repository.ScenarioRepository;
 import com.reliabilityengine.repository.TestResultRepository;
 import com.reliabilityengine.repository.TestSuiteRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +32,11 @@ public class SuiteService {
     private final TestSuiteRepository testSuiteRepository;
     private final TestResultRepository testResultRepository;
     private final ObjectMapper objectMapper;
+    private final ScenarioGeneratorService scenarioGeneratorService;
+    private final ScenarioRepository scenarioRepository;
+    private final ExecutionHarnessService executionHarnessService;
+    private final EvaluatorService evaluatorService;
+    private final ReliabilityService reliabilityService;
 
     @Transactional
     public RunSuiteResponse runSuite(RunSuiteRequest request) {
@@ -51,6 +60,60 @@ public class SuiteService {
 
         testSuiteRepository.save(suite);
 
+        suite.setStatus("RUNNING");
+        testSuiteRepository.save(suite);
+
+        try {
+            scenarioGeneratorService.generateScenarios(suite, suite.getAgentName(), suite.getSystemPrompt(), suite.getTools());
+            
+            List<Scenario> scenarios = scenarioRepository.findBySuiteId(suite.getId());
+            
+            for (Scenario scenario : scenarios) {
+                ExecutionResult execResult = executionHarnessService.executeScenario(scenario, suite.getSystemPrompt(), suite.getTools());
+                
+                String traceJson = null;
+                try {
+                    if (execResult.getTrace() != null) {
+                        traceJson = objectMapper.writeValueAsString(execResult.getTrace());
+                    }
+                } catch (JsonProcessingException ignored) {}
+                
+                EvaluationResult evalResult = evaluatorService.evaluate(
+                        scenario, 
+                        execResult.getTrace(), 
+                        suite.getSystemPrompt(), 
+                        suite.getTools(), 
+                        execResult.isTerminatedByLimit()
+                );
+                
+                TestResult testResult = TestResult.builder()
+                        .id(UUID.randomUUID())
+                        .suite(suite)
+                        .scenarioId(scenario.getId())
+                        .scenarioType(scenario.getScenarioType().name())
+                        .userPrompt(scenario.getUserPrompt())
+                        .trace(traceJson)
+                        .passed(evalResult.isPassed())
+                        .failureMode(evalResult.getFailureMode().name())
+                        .reasoning(evalResult.getReasoning())
+                        .createdAt(ZonedDateTime.now(ZoneOffset.UTC))
+                        .build();
+                        
+                testResultRepository.save(testResult);
+            }
+            
+            List<TestResult> allResults = testResultRepository.findBySuiteId(suite.getId());
+            int reliabilityScore = reliabilityService.calculateReliabilityScore(allResults);
+            // Log the reliability score
+            
+            suite.setStatus("COMPLETED");
+            testSuiteRepository.save(suite);
+        } catch (Exception e) {
+            suite.setStatus("FAILED");
+            testSuiteRepository.save(suite);
+            throw e;
+        }
+
         return RunSuiteResponse.builder()
                 .suiteId(suite.getId())
                 .status(suite.getStatus())
@@ -63,11 +126,11 @@ public class SuiteService {
                 .orElseThrow(() -> new SuiteNotFoundException("Suite not found with id: " + suiteId));
 
         List<TestResult> results = testResultRepository.findBySuiteId(suiteId);
-
-        long passed = results.stream().filter(r -> Boolean.TRUE.equals(r.getPassed())).count();
-        long failed = results.size() - passed;
         
-        List<TestResultResponse> resultResponses = results.stream().map(r -> {
+        // Deterministic sorting based on createdAt
+        results.sort(java.util.Comparator.comparing(TestResult::getCreatedAt));
+
+        List<TestResultResponse> testResultResponses = results.stream().map(r -> {
             Object traceObj = null;
             try {
                 if (r.getTrace() != null) {
@@ -76,7 +139,7 @@ public class SuiteService {
             } catch (JsonProcessingException ignored) {}
 
             return TestResultResponse.builder()
-                    .id(r.getId())
+                    .scenarioId(r.getScenarioId())
                     .scenarioType(r.getScenarioType())
                     .userPrompt(r.getUserPrompt())
                     .passed(r.getPassed())
@@ -86,7 +149,10 @@ public class SuiteService {
                     .build();
         }).collect(Collectors.toList());
 
-        int score = results.isEmpty() ? 0 : (int) ((passed * 100) / results.size());
+        int score = reliabilityService.calculateReliabilityScore(results);
+
+        long passed = results.stream().filter(r -> Boolean.TRUE.equals(r.getPassed())).count();
+        long failed = results.size() - passed;
 
         return ResultsResponse.builder()
                 .suiteId(suite.getId())
@@ -96,7 +162,7 @@ public class SuiteService {
                 .passed(passed)
                 .failed(failed)
                 .total(results.size())
-                .results(resultResponses)
+                .results(testResultResponses)
                 .build();
     }
 }

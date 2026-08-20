@@ -26,6 +26,9 @@ public class TestResult {
     @JoinColumn(name = "suite_id", nullable = false)
     private TestSuite suite;
 
+    @Column(name = "scenario_id")
+    private UUID scenarioId;
+
     @Column(name = "scenario_type")
     private String scenarioType;
 

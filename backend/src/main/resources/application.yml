@@ -20,3 +20,12 @@ spring:
 
 cors:
   allowed-origin: ${FRONTEND_URL:http://localhost:3000}
+
+llm:
+  api:
+    key: ${LLM_API_KEY:default-key}
+    model: ${LLM_MODEL:gpt-3.5-turbo}
+    url: ${LLM_API_URL:https://api.openai.com/v1/chat/completions}
+
+execution:
+  max-turns: 3
