@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 
 interface Props {
   icon: ReactNode;
@@ -12,33 +13,43 @@ interface Props {
   };
 }
 
-export function EmptyState({ icon, title, message, action }: Props) {
+export function EmptyState({
+  icon,
+  title,
+  message,
+  action,
+}: Props) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-16 px-6 text-center">
-      <div className="w-12 h-12 rounded-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-text-muted)]">
+    <div className="common-empty-state">
+      <div className="common-empty-icon">
         {icon}
       </div>
-      <div>
-        <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">{title}</h3>
-        <p className="text-sm text-[var(--color-text-secondary)] max-w-sm">{message}</p>
+
+      <div className="common-empty-copy">
+        <h3>{title}</h3>
+
+        <p>{message}</p>
       </div>
-      {action && (
-        action.to ? (
+
+      {action &&
+        (action.to ? (
           <Link
             to={action.to}
-            className="px-4 py-2 text-sm rounded-md bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors"
+            className="sandbox-btn sandbox-btn-primary"
           >
             {action.label}
+            <ArrowRight size={15} />
           </Link>
         ) : (
           <button
+            type="button"
             onClick={action.onClick}
-            className="px-4 py-2 text-sm rounded-md bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors"
+            className="sandbox-btn sandbox-btn-primary"
           >
             {action.label}
+            <ArrowRight size={15} />
           </button>
-        )
-      )}
+        ))}
     </div>
   );
 }
