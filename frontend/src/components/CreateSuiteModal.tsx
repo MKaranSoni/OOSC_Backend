@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, X, Play } from "lucide-react";
+import { Loader2, X, Play, Settings2 } from "lucide-react";
 import { runSuite } from "../services/suiteService";
 
 interface Props {
@@ -14,6 +14,7 @@ export default function CreateSuiteModal({
   const [agentName, setAgentName] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [tools, setTools] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,13 +23,16 @@ export default function CreateSuiteModal({
 
     setError("");
 
-    if (!agentName.trim()) {
-      setError("Agent name is required.");
+    const cleanAgentName = agentName.trim();
+    const cleanSystemPrompt = systemPrompt.trim();
+
+    if (!cleanAgentName) {
+      setError("Enter an agent name before creating the suite.");
       return;
     }
 
-    if (!systemPrompt.trim()) {
-      setError("System prompt is required.");
+    if (!cleanSystemPrompt) {
+      setError("Enter the system prompt used by the agent.");
       return;
     }
 
@@ -45,7 +49,7 @@ export default function CreateSuiteModal({
         parsedTools = parsed;
       } catch {
         setError(
-          "Tools must be valid JSON array, for example: []"
+          "Tools must be a valid JSON array. Example: []"
         );
         return;
       }
@@ -55,17 +59,23 @@ export default function CreateSuiteModal({
       setLoading(true);
 
       const result = await runSuite({
-        agent_name: agentName.trim(),
-        system_prompt: systemPrompt.trim(),
+        agent_name: cleanAgentName,
+        system_prompt: cleanSystemPrompt,
         tools: parsedTools,
       });
+
+      if (!result?.suite_id) {
+        throw new Error(
+          "The API did not return a suite ID."
+        );
+      }
 
       onCreated(result.suite_id);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to create test suite."
+          : "Unable to create the test suite."
       );
     } finally {
       setLoading(false);
@@ -73,71 +83,123 @@ export default function CreateSuiteModal({
   };
 
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
+    <div
+      className="modal-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !loading) {
+          onClose();
+        }
+      }}
+    >
       <div
         className="suite-modal"
-        onMouseDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-suite-title"
+        onMouseDown={(event) => event.stopPropagation()}
       >
+        {/* HEADER */}
+
         <div className="modal-header">
           <div>
             <span className="section-kicker">
-              NEW EVALUATION
+              TEST CONFIGURATION
             </span>
-            <h2>Create Test Suite</h2>
+
+            <h2 id="create-suite-title">
+              Create Test Suite
+            </h2>
+
             <p>
-              Configure the AI agent you want to evaluate.
+              Define the agent configuration that the reliability
+              engine will evaluate.
             </p>
           </div>
 
-          <button className="modal-close" onClick={onClose}>
-            <X size={18} />
+          <button
+            type="button"
+            className="sandbox-modal-close"
+            onClick={onClose}
+            disabled={loading}
+            aria-label="Close dialog"
+            title="Close"
+          >
+            <X size={17} />
           </button>
         </div>
 
+        {/* FORM */}
+
         <form onSubmit={handleSubmit}>
           <label>
-            Agent Name
+            Agent name
+
             <input
+              type="text"
               value={agentName}
-              onChange={(e) => setAgentName(e.target.value)}
-              placeholder="e.g. Customer Support Agent"
+              onChange={(event) =>
+                setAgentName(event.target.value)
+              }
+              placeholder="Customer Support Agent"
+              autoComplete="off"
+              disabled={loading}
             />
           </label>
 
           <label>
-            System Prompt
+            System prompt
+
             <textarea
               value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="Enter the system prompt used by your AI agent..."
+              onChange={(event) =>
+                setSystemPrompt(event.target.value)
+              }
+              placeholder="Describe how the agent should behave, what it is responsible for, and any constraints it must follow."
               rows={6}
+              disabled={loading}
             />
           </label>
 
           <label>
             Tools
+
             <span className="field-hint">
-              JSON array. Leave empty if the agent has no tools.
+              Optional. Provide the tools available to the agent
+              as a JSON array.
             </span>
 
             <textarea
               value={tools}
-              onChange={(e) => setTools(e.target.value)}
-              placeholder='[]'
-              rows={4}
+              onChange={(event) =>
+                setTools(event.target.value)
+              }
+              placeholder={`[
+  {
+    "name": "search",
+    "description": "Search available information"
+  }
+]`}
+              rows={6}
+              spellCheck={false}
+              disabled={loading}
             />
           </label>
 
           {error && (
-            <div className="form-error">
+            <div
+              className="form-error"
+              role="alert"
+            >
               {error}
             </div>
           )}
 
+          {/* ACTIONS */}
+
           <div className="modal-actions">
             <button
               type="button"
-              className="secondary-button"
+              className="sandbox-btn sandbox-btn-secondary"
               onClick={onClose}
               disabled={loading}
             >
@@ -146,17 +208,22 @@ export default function CreateSuiteModal({
 
             <button
               type="submit"
-              className="primary-button"
+              className="sandbox-btn sandbox-btn-primary"
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <Loader2 size={16} className="spin" />
-                  Creating...
+                  <Loader2
+                    size={15}
+                    className="spin"
+                  />
+
+                  Creating suite...
                 </>
               ) : (
                 <>
                   <Play size={15} />
+
                   Create Test Suite
                 </>
               )}
