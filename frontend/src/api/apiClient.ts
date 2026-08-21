@@ -8,14 +8,14 @@
 
 import type { ApiError, ApiErrorCode, ApiResponse } from '../types/api';
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '';
+const getRawBaseUrl = (): string => {
+  const envUrl =
+    (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
+    (import.meta.env.VITE_API_URL as string | undefined);
+  return envUrl && envUrl.trim() !== '' ? envUrl.trim() : 'http://localhost:8080';
+};
 
-if (!BASE_URL) {
-  console.error(
-    '[apiClient] VITE_API_BASE_URL is not set. ' +
-      'Copy .env.example to .env.local and set the backend URL.'
-  );
-}
+const BASE_URL = getRawBaseUrl().replace(/\/+$/, '');
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
